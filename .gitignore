@@ -1,0 +1,36 @@
+# ---------- MATLAB ----------
+*.asv
+*.m~
+*.mex*
+slprj/
+sccprj/
+codegen/
+octave-workspace
+
+# 중간 산출물 (테스트용 대용량 .mat)
+mcu_dataset/fulltest_*.mat
+result-*.mat
+
+# ---------- STM32CubeIDE ----------
+firmware/**/Debug/
+firmware/**/Release/
+firmware/**/.settings/
+.metadata/
+*.launch
+*.bak
+
+# ---------- Vivado ----------
+fpga/**/*.jou
+fpga/**/*.log
+fpga/**/*.str
+fpga/**/*.cache/
+fpga/**/*.hw/
+fpga/**/*.runs/
+fpga/**/*.sim/
+fpga/**/*.gen/
+fpga/**/.Xil/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
