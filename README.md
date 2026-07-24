@@ -57,6 +57,7 @@ Eurofix 에서 7-bit 데이터는 6개 펄스의 PPM shift(−1 / 0 / +1 µs)로
 - [x] MATLAB 알고리즘 검증 — BER / PER / SER, SNR −14 ~ +2 dB, 1000 iteration
 - [x] 템플릿 길이 최적화 (10000 → 3000 샘플)
 - [x] MCU 입력 데이터셋 추출 — SNR −12 ~ +4 dB × 30 iteration
+- [x] 샘플링률 최적화 (36,600 B → 3,660 B, MATLAB 동치성 유지)
 - [ ] PC ↔ MCU UART 통신 프레임 구현 및 무결성 검증
 - [ ] MCU 복조 이식 + TIM2 기반 처리시간 측정
 - [ ] Correlation FPGA 오프로딩 + 처리시간 비교 (UART → SPI)
