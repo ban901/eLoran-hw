@@ -18,6 +18,9 @@ firmware/**/.settings/
 .metadata/
 *.launch
 *.bak
+*.elf
+*.map
+*.list
 
 # ---------- Vivado ----------
 fpga/**/*.jou
