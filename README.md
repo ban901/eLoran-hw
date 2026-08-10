@@ -3,6 +3,11 @@
 논문에서 제안한 eLoran 신호 PPM 복조 개선 알고리즘(CDC / MDD)을
 실제 임베디드 하드웨어로 이식하고, 실시간 처리 성능을 최적화하는 프로젝트.
 
+> Park & Son, CDC/MDD 보정 알고리즘을 이용한 Eurofix 기반 eLoran LDC 복조 성능 향상,
+> JPNT 15(2), 175-181, 2026.
+
+개발 과정과 설계 근거는 [노션 문서](https://ban91.notion.site/eLoran-HW-3a6c4613717d80fe9330dda7ed12e0ce)에 정리하였다.
+
 ---
 
 ## 1. 시스템 구성
@@ -15,18 +20,20 @@
            │  UART 460800 bps
            ▼
 ┌─────────────────────┐
-│ STM32 NUCLEO-F401RE │  PPM 복조
-│ (Cortex-M4, 84 MHz) │  Correlation → CDC → MDD
-└──────────┬──────────┘
-           │  SPI
+│  Basys3 (Artix-7)   │  Correlation
+└─────────────────────┘
+           │  SPI (상관 결과 전송)
            ▼
 ┌─────────────────────┐
-│  Basys3 (Artix-7)   │  Correlation 오프로딩
-└─────────────────────┘
+│ STM32 NUCLEO-F401RE │  PPM 복조
+│ (Cortex-M4, 84 MHz) │  CDC → MDD
+└──────────┬──────────┘
 ```
 
-수신 신호의 전처리 및 TOA 추정은 PC가 담당하고, MCU는 복조만 수행한다.
-복조 연산 중 correlation 구간만 FPGA로 분리해 처리시간을 단축하는 것이 목표다.
+PC는 ADC를 대신하는 시험용 신호원이며, 전처리와 Coarse TOA 추정을 담당한다.
+
+FPGA 연동 시에는 PC가 Basys3로 신호를 전달하고,
+Basys3가 상관값(6펄스 × 3후보)만을 MCU로 넘기는 구성이다.
 
 ---
 
@@ -48,7 +55,8 @@ Eurofix 에서 7-bit 데이터는 6개 펄스의 PPM shift(−1 / 0 / +1 µs)로
   (`F09_PULIDX`, 기존 테이블 선형탐색 대체)
 - 비트 → 인덱스 : 이진 가중합으로 O(1) 계산 (`F08_BITIDX`)
 - 템플릿 길이 10000 → **3000 샘플** 축소
-  (`SWEEP_TPL` 스윕 결과, 정확도 동일 · 상관 연산량 70 % 감소)
+  (`SWEEP_TPL` 스윕 결과, 정확도 동일, 상관 연산량 70 % 감소)
+- 샘플링률 10 MHz → 1 MHz (D=10 데시메이션, 36,600 B → 3,660 B / iteration)
 
 ---
 
@@ -59,7 +67,9 @@ Eurofix 에서 7-bit 데이터는 6개 펄스의 PPM shift(−1 / 0 / +1 µs)로
 - [x] MCU 입력 데이터셋 추출 — SNR −12 ~ +4 dB × 30 iteration
 - [x] 샘플링률 최적화 (36,600 B → 3,660 B, MATLAB 동치성 유지)
 - [x] PC ↔ MCU UART 통신 프레임 구현 및 무결성 검증
-- [ ] MCU 복조 이식 + TIM2 기반 처리시간 측정
+- [x] MCU 복조 이식 + TIM2 기반 처리시간 측정
+- [x] FPGA ↔ MCU 인터페이스 선정
+- [ ] FPGA 상관 IP 설계
 - [ ] Correlation FPGA 오프로딩 + 처리시간 비교 (UART → SPI)
 
 ---
@@ -68,13 +78,13 @@ Eurofix 에서 7-bit 데이터는 6개 펄스의 PPM shift(−1 / 0 / +1 µs)로
 
 ```
 matlab/
-  ppm/        PPM 변조 / 복조 / 매핑 테이블         ← 핵심 기여
-  eval/       BER · PER · SER 성능 평가
+  ppm/        PPM 변조 / 복조 / 매핑 테이블
+  eval/       BER / PER / SER 성능 평가
   extract/    MCU용 데이터셋 추출 및 템플릿 길이 스윕
   external/   본 저장소 제외분(연구실 IP)의 인터페이스 명세
 dataset/      추출된 신호(.bin) + 정답/기준결과(.mat) + 포맷 명세
-firmware/     STM32CubeIDE 프로젝트 (예정)
-fpga/         Basys3 HDL (예정)
+firmware/     STM32CubeIDE 프로젝트
+fpga/         Basys3 HDL
 ```
 
 **주요 파일**
@@ -86,6 +96,10 @@ fpga/         Basys3 HDL (예정)
 | `matlab/eval/F10_LDCMAIN_20260119.m` | 성능 통계 누적 (BER / PER / SER) |
 | `matlab/extract/EXTRACT_SIGNALS_20260404.m` | MCU 데이터셋 최종 추출 |
 | `matlab/extract/SWEEP_TPL_20260404.m` | 템플릿 길이 vs 정확도 스윕 |
+| `matlab/comm/DEMOD_TEST.m` | MCU 복조 검증 (동치성 대조 및 처리시간 수집) |
+| `firmware/eLoran_demod/Core/Src/corr.c` | 상관 연산 |
+| `firmware/eLoran_demod/Core/Src/demod.c` | Step 1 / CDC / MDD |
+| `firmware/eLoran_demod/Core/Src/frame.c` | UART 프레임 상태머신 / CRC-16 |
 
 ---
 
@@ -105,11 +119,11 @@ fpga/         Basys3 HDL (예정)
 ## 6. 저장소 범위에 대한 안내
 
 수신신호 생성(`G*`), 펄스 템플릿(`P*`), 전처리 및 Coarse TOA 추정 체인은
-소속 연구실의 자산에 해당하여 본 저장소에서 **제외**했습니다.
-공개 범위는 PPM 변복조, 성능 평가, MCU 데이터셋 추출 및 이후의 펌웨어 · HDL 구현이며,
+소속 연구실의 자산에 해당하여 본 저장소에서 **제외**하였다.
+공개 범위는 PPM 변복조, 성능 평가, MCU 데이터셋 추출 및 이후의 펌웨어 & HDL 구현이며,
 제외된 함수의 호출 인터페이스는 [`matlab/external/README.md`](matlab/external/README.md)에
-명시했습니다.
+명시하였다.
 
 이에 따라 MATLAB 코드는 단독 실행되지 않으나,
 `dataset/` 에 추출 결과가 포함되어 있어
-**펌웨어 개발 및 검증은 본 저장소만으로 재현 가능**합니다.
+**펌웨어 개발 및 검증은 본 저장소만으로 재현 가능**하다.
