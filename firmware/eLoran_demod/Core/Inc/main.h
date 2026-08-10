@@ -57,6 +57,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LD2_Pin GPIO_PIN_5		// ioc 설정에서 PA5 -> GPIO_OUTPUT -> User Lable LD2
+#define LD2_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

@@ -24,7 +24,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "proto.h"
+#include "frame.h"
+#include "corr.h"
+#include "demod.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,6 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+//#define DIAG_BUFFER_CHECK   1		// 진단 코드: ON(1) / OFF(0)
 
 /* USER CODE END PD */
 
@@ -45,17 +50,82 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static uint8_t buf[3665];
+static uint8_t     g_rx_byte;                     // UART 1바이트 수신 버퍼
+static int64_t     g_corr[N_PULSE][N_CAND];       // 상관값 6x3
+static DemodResult g_result;
+static uint8_t     g_payload[PROTO_LEN_RESULT];   // 결과 31 B
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static uint32_t us_now(void);
+static void     put_u32(uint8_t *p, uint32_t v);
+static void     run_demod(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// TIM2 : Prescaler 83 -> 1 tick = 1 us, Period 0xFFFFFFFF (32비트)
+// uint32 뺄셈이므로 카운터가 한 바퀴 돌아도 경과시간은 정상적으로 나온다.
+static uint32_t us_now(void)
+{
+    return __HAL_TIM_GET_COUNTER(&htim2);
+}
+
+// uint32를 리틀 엔디안 4바이트로 쓴다
+static void put_u32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v      );
+    p[1] = (uint8_t)(v >>  8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+// CMD_DEMOD 를 받았을 때 실행되는 본체
+static void run_demod(void)
+{
+    uint8_t status = FRAME_SignalReady() ? STATUS_OK : STATUS_NO_SIGNAL;
+
+    uint32_t t0 = us_now();
+
+    // 1. 상관 : 6펄스 x 3후보 = 18회
+    CORR_Compute(FRAME_Signal(), g_corr);
+    uint32_t t1 = us_now();
+
+    // 2. 판정 : Step 1 -> CDC -> MDD
+    DEMOD_Run(g_corr, &g_result);
+    uint32_t t2 = us_now();
+
+    // 3. 결과 페이로드 31 B 조립
+    memset(g_payload, 0, sizeof(g_payload));
+
+    memcpy(&g_payload[RES_OFF_EST_PULSES], g_result.est_pulses, N_PULSE);
+    memcpy(&g_payload[RES_OFF_BITS],       g_result.bits,       N_BITS);
+
+    g_payload[RES_OFF_STATE]  = g_result.state;
+    g_payload[RES_OFF_STATUS] = status;
+
+    put_u32(&g_payload[RES_OFF_T_CORR],   t1 - t0);
+    put_u32(&g_payload[RES_OFF_T_DECIDE], t2 - t1);
+    put_u32(&g_payload[RES_OFF_T_TOTAL],  t2 - t0);
+
+//#if DIAG_BUFFER_CHECK
+//    // 하위 8비트씩: timeout / crc_err / uart_err
+//    const FrameStat *st = FRAME_Stats();
+//    put_u32(&g_payload[RES_OFF_T_COMM],
+//            ((st->n_uart_err & 0xFF) << 16) |
+//            ((st->n_crc_err  & 0xFF) <<  8) |
+//             (st->n_timeout  & 0xFF));
+//#else
+    put_u32(&g_payload[RES_OFF_T_COMM], 0);   // FPGA 연동 전이므로 0
+//#endif
+
+    FRAME_SendResult(g_payload);
+
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);   // 동작 확인용
+}
 
 /* USER CODE END 0 */
 
@@ -92,23 +162,46 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_TIM_Base_Start(&htim2);      // 처리시간 측정용 프리러닝 카운터
+
+  DEMOD_Init();                    // 729-entry 해시 테이블 생성
+  FRAME_Init();
+
+  HAL_UART_Receive_IT(&huart2, &g_rx_byte, 1);   // 첫 바이트 대기
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	if (HAL_UART_Receive(&huart2, buf, sizeof(buf), HAL_MAX_DELAY) == HAL_OK)
-		HAL_UART_Transmit(&huart2, buf, sizeof(buf), HAL_MAX_DELAY);
-	  /* uint8_t b;
-	  if (HAL_UART_Receive(&huart2, &b, 1, HAL_MAX_DELAY) == HAL_OK){
-		  if (b >= 'a' && b <= 'z') b -= 32;   // 디버깅용 (대문자 변경)
-		  HAL_UART_Transmit(&huart2, &b, 1, HAL_MAX_DELAY);
-		}  */
+
+	FRAME_Tick();                  // 프레임 도중 끊기면 파서 리셋
+
+	switch (FRAME_TakeEvent()) {
+
+	case FRAME_LOAD:
+        // 확정된 신호를 처리 버퍼로 옮긴다.
+        FRAME_CommitSignal();
+		break;
+
+	case FRAME_DEMOD:
+        // LOAD와 DEMOD가 연달아 도착해 LOAD 이벤트를 놓쳤을 수도 있으니
+        // CommitSignal은 여러번 불러도 안전하므로 여기서 한번 더 부른다.
+        FRAME_CommitSignal();
+        run_demod();
+		break;
+
+	default:
+		break;
+	}
+
   }
+
   /* USER CODE END 3 */
 }
 
@@ -158,6 +251,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// 바이트가 하나 도착할 때마다 호출된다. (USART2 global interrupt)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2) {
+        FRAME_FeedByte(g_rx_byte);
+        HAL_UART_Receive_IT(huart, &g_rx_byte, 1);   // 다음 바이트 재무장
+    }
+}
+
+// 오버런(ORE) 이 나면 HAL 이 수신을 중단한다.
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2) {
+        FRAME_NotifyUartError();
+        HAL_UART_Receive_IT(huart, &g_rx_byte, 1);
+    }
+}
 
 /* USER CODE END 4 */
 
