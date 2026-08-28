@@ -32,6 +32,10 @@ fpga/**/*.runs/
 fpga/**/*.sim/
 fpga/**/*.gen/
 fpga/**/.Xil/
+fpga/**/*.bit
+fpga/**/*.bin
+fpga/**/*.mcs
+fpga/**/*.prm
 
 # ---------- OS ----------
 .DS_Store
