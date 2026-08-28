@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -29,6 +30,12 @@
 #include "corr.h"
 #include "demod.h"
 #include <string.h>
+
+// FPGA 추가
+#include "spi.h"
+#include "fpga_spi.h"
+#define USE_FPGA 1        // 1=FPGA 오프로딩, 0=MCU 단독 (비교용)
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,13 +93,27 @@ static void put_u32(uint8_t *p, uint32_t v)
 // CMD_DEMOD 를 받았을 때 실행되는 본체
 static void run_demod(void)
 {
-    uint8_t status = FRAME_SignalReady() ? STATUS_OK : STATUS_NO_SIGNAL;
 
+	// 1. FPGA 상관 계산 + SPI 전송 시간
+    uint8_t status = STATUS_OK;
     uint32_t t0 = us_now();
 
-    // 1. 상관 : 6펄스 x 3후보 = 18회
+#if USE_FPGA
+    if (FPGA_ReadCorr(g_corr) != 0) status = STATUS_NO_SIGNAL;   // START->DONE->SPI
+#else
+    status = FRAME_SignalReady() ? STATUS_OK : STATUS_NO_SIGNAL;
     CORR_Compute(FRAME_Signal(), g_corr);
+#endif
     uint32_t t1 = us_now();
+
+// 기존 (MCU 단독)
+//    uint8_t status = FRAME_SignalReady() ? STATUS_OK : STATUS_NO_SIGNAL;
+//
+//    uint32_t t0 = us_now();
+//
+//    // 1. 상관 : 6펄스 x 3후보 = 18회
+//    CORR_Compute(FRAME_Signal(), g_corr);
+//    uint32_t t1 = us_now();
 
     // 2. 판정 : Step 1 -> CDC -> MDD
     DEMOD_Run(g_corr, &g_result);
@@ -160,6 +181,7 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim2);      // 처리시간 측정용 프리러닝 카운터
