@@ -11,6 +11,8 @@
 
 clear;
 
+addpath(genpath('C:\Users\soyeo\GitHub\eLoran-hw\dataset'));
+
 PORT_FPGA = "COM11";
 PORT_MCU  = "COM7";     % <-- NUCLEO ST-Link VCP (USART2)
 BAUD      = 460800;
