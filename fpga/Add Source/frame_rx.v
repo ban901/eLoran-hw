@@ -37,7 +37,7 @@ module frame_rx (
         integer i; reg [15:0] x;
         begin
             x = c ^ {d,8'h00};
-            for (i=0;i<8;i=i+1)
+            for (i=0; i<8; i = i+1)
                 x = x[15] ? ((x<<1)^16'h1021) : (x<<1);
             crc_upd = x;
         end
@@ -47,27 +47,46 @@ module frame_rx (
         seg_we <= 1'b0;
         loaded <= 1'b0;
         if (rst) begin
-            st<=S_SOF1; bcnt<=0; sidx<=0; low_lat<=0; busy_rx<=0; crc_ok<=0;
+            st      <= S_SOF1;
+            bcnt    <= 0;
+            sidx    <= 0;
+            low_lat <= 0;
+            busy_rx <= 0;
+            crc_ok  <= 0;
         end else if (b_valid) begin
             case (st)
-                S_SOF1: begin busy_rx<=0;
-                    if (b_data==8'hA5) begin st<=S_SOF2; busy_rx<=1; end
+                S_SOF1: begin
+                    busy_rx <= 0;
+                    if (b_data==8'hA5) begin
+                        st      <= S_SOF2;
+                        busy_rx <= 1;
+                    end
                 end
                 S_SOF2: begin
-                    if (b_data==8'hC3) st<=S_TYPE;
-                    else if (b_data==8'hA5) st<=S_SOF2;
-                    else begin st<=S_SOF1; busy_rx<=0; end
+                    if (b_data==8'hC3) st <= S_TYPE;
+                    else if (b_data==8'hA5) st <= S_SOF2;
+                    else begin
+                        st      <= S_SOF1;
+                        busy_rx <= 0;
+                    end
                 end
                 S_TYPE: begin
                     crc <= crc_upd(16'hFFFF, b_data);
-                    if (b_data==TYPE_LOAD) begin
-                        st<=S_PAY; bcnt<=0; sidx<=0; low_lat<=0;
-                    end else begin st<=S_SOF1; busy_rx<=0; end
+                    if (b_data == TYPE_LOAD) begin
+                        st      <= S_PAY;
+                        bcnt    <= 0;
+                        sidx    <= 0;
+                        low_lat <= 0;
+                    end else begin
+                        st      <= S_SOF1;
+                        busy_rx <= 0;
+                    end
                 end
                 S_PAY: begin
                     crc <= crc_upd(crc, b_data);
                     if (!low_lat) begin
-                        low_byte <= b_data; low_lat <= 1'b1;
+                        low_byte  <= b_data;
+                        low_lat   <= 1'b1;
                     end else begin
                         seg_wdata <= {b_data, low_byte};  // LE: first=low
                         seg_waddr <= sidx;
@@ -75,15 +94,18 @@ module frame_rx (
                         sidx      <= sidx + 1'b1;
                         low_lat   <= 1'b0;
                     end
-                    if (bcnt==PAY_BYTES-1) st<=S_CRC1;
-                    else bcnt<=bcnt+1'b1;
+                    if (bcnt == PAY_BYTES-1) st <= S_CRC1;
+                    else bcnt <= bcnt + 1'b1;
                 end
-                S_CRC1: begin crc_lo <= b_data; st<=S_CRC2; end   // LE: lo byte first
+                S_CRC1: begin
+                    crc_lo  <= b_data;
+                    st      <= S_CRC2;
+                end   // LE: lo byte first
                 S_CRC2: begin
-                    crc_ok <= ({b_data,crc_lo}==crc);             // {hi,lo}
-                    loaded <= 1'b1;          // frame complete (crc_ok tells validity)
-                    busy_rx<= 1'b0;
-                    st<=S_SOF1;
+                    crc_ok  <= ({b_data,crc_lo}==crc);             // {hi,lo}
+                    loaded  <= 1'b1;          // frame complete (crc_ok tells validity)
+                    busy_rx <= 1'b0;
+                    st      <= S_SOF1;
                 end
             endcase
         end

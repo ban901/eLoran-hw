@@ -33,27 +33,43 @@ ds  = load(MAT).ds;
 sf = serialport(PORT_FPGA, BAUD);  sf.Timeout = 3;  flush(sf);
 sm = serialport(PORT_MCU,  BAUD);  sm.Timeout = 3;  flush(sm);
 
+pause(2);   % 포트 오픈 후 안정화 대기 (기존 it==1 특수분기 대신 여기서 한번만)
+
+%% ---- [진단] 더미 워밍업 1회: FPGA/MCU 콜드스타트 결과를 버린다 ----
+warm_tx   = raw(1:LOAD_LEN);                     % 아무 프레임이나 (첫 세그먼트 재사용)
+warm_body = [uint8(4), warm_tx];
+write(sf, [165 195 warm_body crc_le(crc16(warm_body))], "uint8");
+pause(0.1);
+
+warm_body2 = uint8(5);
+write(sm, [165 195 warm_body2 crc_le(crc16(warm_body2))], "uint8");
+
+try
+    read(sm, RES_LEN + 5, "uint8");   % 응답을 읽기만 하고 버린다
+    fprintf('  워밍업 완료 (결과 폐기)\n');
+catch
+    fprintf('  워밍업 타임아웃 (무시하고 계속)\n');
+end
+%% -------------------------------------------------------------------
+
+
 est_pulses = zeros(N,6); bits = zeros(N,7);
 state = zeros(N,1); status = zeros(N,1); t_us = zeros(N,4);
 n_fail = 0;
-
-% 워밍업: 포트 오픈 직후 첫 프레임은 버린다 (실제 수신기엔 없는 시험용) %%%%%%%%%%%%%%%%%%%%%%%%%%
-body = [uint8(4), raw(1:LOAD_LEN)];
-write(sf, [165 195 body crc_le(crc16(body))], "uint8");  pause(0.5);
 
 for it = 1:N
 
     % 1) 신호 -> FPGA (CMD_LOAD)
     tx   = raw((it-1)*LOAD_LEN + (1:LOAD_LEN));
     body = [uint8(4), tx];
+
     write(sf, [165 195 body crc_le(crc16(body))], "uint8");
-    
-    % UART 전송(~80 ms) + FPGA 적재가 끝나도록 대기 (실제 수신기엔 없는 시험용 지연)
-    pause(0.1);
+    pause(0.1); % <- 이 부분
 
     % 2) 복조 시작 -> MCU (CMD_DEMOD, 페이로드 없음)
     body = uint8(5);
     write(sm, [165 195 body crc_le(crc16(body))], "uint8");
+
 
     % 3) 결과 <- MCU (36 B)
     try
@@ -122,11 +138,10 @@ elseif ~all(ok_bits)
 end
 
 fprintf('\n========== 처리시간 [us] (FPGA 상관+SPI 포함) ==========\n');
-fprintf('               평균      최대\n');
-fprintf('Correlation  %7.1f   %7.1f\n', mean(t_us(:,1)), max(t_us(:,1)));
-fprintf('Decision     %7.1f   %7.1f\n', mean(t_us(:,2)), max(t_us(:,2)));
-fprintf('Total        %7.1f   %7.1f   (목표 9930)\n', mean(t_us(:,4)), max(t_us(:,4)));
-
+fprintf('               평균      최대      최소\n');
+fprintf('Correlation  %7.1f   %7.1f   %7.1f\n', mean(t_us(:,1)), max(t_us(:,1)), min(t_us(:,1)));
+fprintf('Decision     %7.1f   %7.1f   %7.1f\n', mean(t_us(:,2)), max(t_us(:,2)), min(t_us(:,2)));
+fprintf('Total        %7.1f   %7.1f   %7.1f   (목표 993)\n', mean(t_us(:,4)), max(t_us(:,4)), min(t_us(:,4)));
 %% ---- helpers ----
 function b = crc_le(c)
     b = [bitand(c,255) bitshift(c,-8)];   % LE: lo, hi

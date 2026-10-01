@@ -69,9 +69,17 @@ module correlator #(
 
             // ---- start ----
             if (start && !busy) begin
-                busy<=1'b1; done<=1'b0;
-                n<=0; k<=0; c<=0; pair<=0; kbase<=0;
-                acc<=0; pcnt<=0; dv<=0; pv<=0;
+                busy    <= 1'b1;
+                done    <= 1'b0;
+                n       <= 0;
+                k       <= 0;
+                c       <= 0;
+                pair    <= 0;
+                kbase   <= 0;
+                acc     <= 0;
+                pcnt    <= 0;
+                dv      <= 0;
+                pv      <= 0;
             end
             // ---- pair complete (all NTAP products accumulated) ----
             else if (busy && pv && (pcnt == NTAP-1)) begin
@@ -79,14 +87,23 @@ module correlator #(
                 // acc (post-update) is the result -> capture via next value
                 result_flat[pair*64 +: 64] <= acc + {{32{product[31]}}, product};
                 if (pair == NPAIR-1) begin
-                    busy<=1'b0; done<=1'b1;
+                    busy <= 1'b0;
+                    done <= 1'b1;
                 end else begin
-                    pair<=pair+1'b1;
+                    pair <= pair + 1'b1;
                     // next (k,c)
-                    if (c == NCAND-1) begin c<=0; k<=k+1'b1; kbase<=kbase+SEG_STRIDE; end
-                    else                    c<=c+1'b1;
+                    if (c == NCAND-1) begin
+                        c       <= 0;
+                        k       <= k + 1'b1;
+                        kbase   <= kbase + SEG_STRIDE;
+                    end else  c <= c + 1'b1;
                     // restart tap pipeline for next pair
-                    n<=0; acc<=0; pcnt<=0; dv<=0; pv<=0; product<=0;
+                    n       <= 0;
+                    acc     <= 0;
+                    pcnt    <= 0;
+                    dv      <= 0; 
+                    pv      <= 0;
+                    product <= 0;
                 end
             end
         end

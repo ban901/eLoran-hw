@@ -18,23 +18,36 @@ module uart_rx #(
     reg        rx_q1=1'b1, rx_q2=1'b1;   // double-flop synchronizer
 
     always @(posedge clk) begin
-        rx_q1 <= rx; rx_q2 <= rx_q1;
+        rx_q1 <= rx;
+        rx_q2 <= rx_q1;
         valid <= 1'b0;
         if (rst) begin
-            state<=S_IDLE; cnt<=0; bidx<=0;
+            state <= S_IDLE;
+            cnt   <= 0;
+            bidx  <= 0;
         end else case (state)
-            S_IDLE:  if (!rx_q2) begin state<=S_START; cnt<=0; end   // start bit
+            S_IDLE:  if (!rx_q2) begin
+                state <= S_START;
+                cnt   <= 0;
+            end   // start bit
             S_START: if (cnt == CLKS_PER_BIT/2) begin
-                        if (!rx_q2) begin cnt<=0; bidx<=0; state<=S_DATA; end
-                        else          state<=S_IDLE;                 // false start
-                     end else cnt<=cnt+1'b1;
+                        if (!rx_q2) begin
+                            cnt   <= 0;
+                            bidx  <= 0;
+                            state <= S_DATA;
+                        end else state <= S_IDLE;                 // false start
+                     end else cnt <= cnt + 1'b1;
             S_DATA:  if (cnt == CLKS_PER_BIT-1) begin
-                        cnt<=0; data[bidx]<=rx_q2;
-                        if (bidx==3'd7) state<=S_STOP; else bidx<=bidx+1'b1;
-                     end else cnt<=cnt+1'b1;
+                        cnt <= 0;
+                        data[bidx] <= rx_q2;
+                        if (bidx==3'd7) state <= S_STOP;
+                        else bidx <= bidx + 1'b1;
+                     end else cnt <= cnt + 1'b1;
             S_STOP:  if (cnt == CLKS_PER_BIT-1) begin
-                        cnt<=0; valid<=1'b1; state<=S_IDLE;          // sample stop, emit
-                     end else cnt<=cnt+1'b1;
+                        cnt <= 0;
+                        valid <= 1'b1;
+                        state <= S_IDLE;          // sample stop, emit
+                     end else cnt <= cnt+1'b1;
         endcase
     end
 endmodule

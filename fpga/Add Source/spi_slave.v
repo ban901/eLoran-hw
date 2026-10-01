@@ -35,13 +35,15 @@ module spi_slave #(
 
     always @(posedge clk) begin
         if (rst) begin
-            byte_idx<=0; bitpos<=0; cur_byte<=0;
+            byte_idx <= 0;
+            bitpos   <= 0;
+            cur_byte <= 0;
         end else if (cs_falling) begin
             byte_idx <= 0;
             bitpos   <= 0;
             cur_byte <= result_flat[7:0];             // byte 0
         end else if (cs_active && sck_fall) begin
-            if (bitpos==3'd7) begin
+            if (bitpos == 3'd7) begin
                 bitpos   <= 0;
                 byte_idx <= byte_idx + 1'b1;
                 cur_byte <= result_flat[(byte_idx+1)*8 +: 8];

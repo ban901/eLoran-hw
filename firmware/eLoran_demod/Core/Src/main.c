@@ -178,10 +178,11 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
+
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   MX_SPI2_Init();
+  MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim2);      // 처리시간 측정용 프리러닝 카운터
