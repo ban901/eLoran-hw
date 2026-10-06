@@ -5,6 +5,7 @@
  */
 
 #include "corr.h"
+#include "arm_math.h"
 
 void CORR_Compute(const int16_t *seg, int64_t corr[N_PULSE][N_CAND])
 {
@@ -21,6 +22,17 @@ void CORR_Compute(const int16_t *seg, int64_t corr[N_PULSE][N_CAND])
                 acc += (int32_t)x[n] * (int32_t)TPL[n];
 
             corr[k][c] = acc;
+        }
+    }
+}
+
+void CORR_Compute_DSP(const int16_t *seg, int64_t corr[N_PULSE][N_CAND])
+{
+    for (int k = 0; k < N_PULSE; k++) {
+        const q15_t *slice = &seg[k * SEG_LEN];
+
+        for (int c = 0; c < N_CAND; c++) {
+            arm_dot_prod_q15(&slice[CAND[c]], TPL, TPL_LEN, &corr[k][c]);
         }
     }
 }

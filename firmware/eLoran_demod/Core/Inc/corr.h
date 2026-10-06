@@ -19,5 +19,6 @@
  *   약 42배이므로 int32 로는 반드시 넘친다.
  */
 void CORR_Compute(const int16_t *seg, int64_t corr[N_PULSE][N_CAND]);
+void CORR_Compute_DSP(const int16_t *seg, int64_t corr[N_PULSE][N_CAND]);
 
 #endif /* CORR_H */

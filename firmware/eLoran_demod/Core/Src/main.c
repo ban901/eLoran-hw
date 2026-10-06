@@ -34,7 +34,8 @@
 // FPGA 추가
 #include "spi.h"
 #include "fpga_spi.h"
-#define USE_FPGA 1        // 1=FPGA 오프로딩, 0=MCU 단독 (비교용)
+#define USE_FPGA 0        	// 1=FPGA 오프로딩, 0=MCU 단독 (비교용)
+#define USE_CMSIS 1			// 1=CMSIS DSP 사용, 0=미사용 (비교용)
 
 /* USER CODE END Includes */
 
@@ -102,7 +103,11 @@ static void run_demod(void)
     if (FPGA_ReadCorr(g_corr) != 0) status = STATUS_NO_SIGNAL;   // START->DONE->SPI
 #else
     status = FRAME_SignalReady() ? STATUS_OK : STATUS_NO_SIGNAL;
-    CORR_Compute(FRAME_Signal(), g_corr);
+	#if USE_CMSIS
+		CORR_Compute_DSP(FRAME_Signal(), g_corr);
+	#else
+		CORR_Compute(FRAME_Signal(), g_corr);
+	#endif
 #endif
     uint32_t t1 = us_now();
 
@@ -178,11 +183,10 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
+  MX_GPIO_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   MX_SPI2_Init();
-  MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim2);      // 처리시간 측정용 프리러닝 카운터

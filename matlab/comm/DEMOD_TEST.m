@@ -8,6 +8,8 @@
 % clc;
 clear;
 
+addpath(genpath('C:\Users\soyeo\GitHub\eLoran-hw\dataset'));
+
 PORT = "COM7";
 BAUD = 460800;
 SNR  = '-08';                   % '-12' '-08' '-04' '+00' '+04'
