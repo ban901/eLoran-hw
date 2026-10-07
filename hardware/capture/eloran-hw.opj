@@ -1,0 +1,70 @@
+(ExpressProject "eloran-hw"
+  (ProjectVersion "19981106")
+  (SoftwareVersion "25.1 S050 (4459063)  [7/18/2026]-[10/07/26]")
+  (ProjectType "PCB")
+  (Folder "Design Resources"
+    (Folder "Library"
+      (File "..\lib\symbols\stm32f401ret6\orcadcaptureolb.olb"
+        (Type "Schematic Library")))
+    ("Allegro Netlist Directory" "allegro")
+    (DOCKED "TRUE")
+    (DOCKING_POSITION "59420")
+    (NoModify)
+    (File ".\eloran-hw.dsn"
+      (Type "Schematic Design"))
+    (BuildFileAddedOrDeleted "x")
+    (CompileFileAddedOrDeleted "x"))
+  (Folder "Layout")
+  (Folder "Outputs")
+  (Folder "Referenced Projects")
+  (Folder "PSpice Resources"
+    (Folder "Simulation Profiles")
+    (Folder "Model Libraries"
+      (Sort User))
+    (Folder "Stimulus Files"
+      (Sort User))
+    (Folder "Include Files"
+      (Sort User)))
+  (Folder "Logs")
+  (MPSSessionName "soyeo")
+  (PartMRUSelector
+    (STM32F401RET6
+      (FullPartName "STM32F401RET6A.Normal")
+      (LibraryName
+         "C:\USERS\SOYEO\GITHUB\ELORAN-HW\HARDWARE\LIB\SYMBOLS\STM32F401RET6\ORCADCAPTUREOLB.OLB")
+      (DeviceIndex "0")))
+  (GlobalState
+    (FileView
+      (Path "Design Resources")
+      (Path "Design Resources" ".\eloran-hw.dsn")
+      (Path "Design Resources" ".\eloran-hw.dsn" "SCHEMATIC1")
+      (Path "Design Resources" "Library")
+      (Path "Design Resources" "Library"
+         "C:\USERS\SOYEO\GITHUB\ELORAN-HW\HARDWARE\lib\symbols\stm32f401ret6\orcadcaptureolb.olb")
+      (Select "Design Resources" "Library"
+         "C:\USERS\SOYEO\GITHUB\ELORAN-HW\HARDWARE\lib\symbols\stm32f401ret6\orcadcaptureolb.olb"
+         "STM32F401RET6"))
+    (HierarchyView)
+    (Doc
+      (Type "COrCapturePMDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -1 -1 0 200 0 541"))
+      (Tab 0))
+    (Doc
+      (Type "COrPrmBrowserDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -31 5 1034 24 559"))
+      (Path
+         "C:\USERS\SOYEO\GITHUB\ELORAN-HW\HARDWARE\LIB\SYMBOLS\STM32F401RET6\ORCADCAPTUREOLB.OLB")
+      (Package "STM32F401RET6")
+      (PartType "1"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -1 -1 5 1034 24 559")
+        (Scroll "182 71")
+        (Zoom "140")
+        (Occurrence "/"))
+      (Path "C:\USERS\SOYEO\GITHUB\ELORAN-HW\HARDWARE\CAPTURE\ELORAN-HW.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "PAGE1"))))
